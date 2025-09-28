@@ -1,58 +1,48 @@
-########################################################################
-FROM elixir:1.9.4-slim
+# ===== BUILDER =====
+FROM hexpm/elixir:1.18.4-erlang-28.1-debian-trixie-20250908 AS builder
 
-ENV SHELL=/bin/sh
-ENV application_directory=/usr/src/app
-ENV ENABLE_XVBF=true
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      build-essential git curl \
+      libssl-dev libncurses6 libtinfo6 \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p $application_directory
-
-WORKDIR $application_directory
-
-# Install utilities
-RUN apt-get update --fix-missing && apt-get -y upgrade
-
-RUN apt-get update \
-    && apt-get install -y gnupg2 g++ wget \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /src/*.deb
-
-# Install latest chrome dev package.
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /src/*.deb
-
-# Add a chrome user and setup home dir.
-RUN groupadd --system chrome && \
-    useradd --system --create-home --gid chrome --groups audio,video chrome && \
-    mkdir --parents /home/chrome/reports && \
-    chown --recursive chrome:chrome /home/chrome && \
-    chown --recursive chrome:chrome $application_directory
-
-# Run everything after as non-privileged user.
-USER chrome
-
+WORKDIR /app
 ENV MIX_ENV=prod
 
-# Install Hex + Rebar
-RUN mix do local.hex --force, local.rebar --force
+# Install Hex/Rebar
+RUN mix local.hex --force && mix local.rebar --force
 
-# Cache & compile elixir deps
-COPY --chown=chrome config/ $application_directory/config/
-COPY --chown=chrome mix.exs mix.lock $application_directory/
+# Get deps
+COPY mix.exs mix.lock ./
 RUN mix deps.get --only $MIX_ENV
 RUN mix deps.compile
 
-# Get rest of application and compile
-COPY --chown=chrome . $application_directory/
+# Build app
+COPY . .
 RUN mix compile --no-deps-check
+RUN mix release
 
-RUN mix do deps.loadpaths --no-deps-check
+# ===== RUNTIME =====
+FROM linuxserver/chrome:latest
 
-EXPOSE 4000
+# Install minimal runtime deps
+RUN apt update && \
+    apt install -y --no-install-recommends libstdc++6 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
+WORKDIR /app
+COPY --from=builder /app/_build/prod/rel/chroxy ./chroxy
+
+# Create non-root user and set ownership
+RUN useradd -m -s /bin/sh chroxy && \
+    chown -R chroxy:chroxy /app/chroxy
+
+USER chroxy
 ENV PORT=4000
 
-CMD ["mix", "run", "--no-halt"]
+EXPOSE 4000
+CMD ["sh", "-c", "SHELL=/bin/sh exec /app/chroxy/bin/chroxy start"]
