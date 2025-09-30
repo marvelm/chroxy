@@ -29,9 +29,9 @@ defmodule Chroxy.MixProject do
       {:plug_cowboy, "~> 2.7.4"},
       {:cowboy, "~> 2.14.0"},
       {:jason, "~> 1.4.4"},
-      {:chrome_remote_interface, "~> 0.3.0"},
-      {:ex_doc, "~> 0.20", only: :dev, runtime: false}
       {:erlexec, "~> 2.2.1"},
+      {:chrome_remote_interface, github: "marvelm/chrome-remote-interface"},
+      {:ex_doc, "~> 0.20", only: :dev, runtime: false},
     ]
   end
 
