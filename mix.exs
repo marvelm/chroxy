@@ -17,7 +17,7 @@ defmodule Chroxy.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :erlexec, :exexec],
+      extra_applications: [:logger, :erlexec],
       mod: {Chroxy.Application, []}
     ]
   end
@@ -29,10 +29,9 @@ defmodule Chroxy.MixProject do
       {:plug_cowboy, "~> 2.7.4"},
       {:cowboy, "~> 2.14.0"},
       {:jason, "~> 1.4.4"},
-      {:erlexec, "~> 1.10"},
-      {:exexec, "~> 0.2"},
       {:chrome_remote_interface, "~> 0.3.0"},
       {:ex_doc, "~> 0.20", only: :dev, runtime: false}
+      {:erlexec, "~> 2.2.1"},
     ]
   end
 

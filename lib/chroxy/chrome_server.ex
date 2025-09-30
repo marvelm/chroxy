@@ -198,14 +198,14 @@ defmodule Chroxy.ChromeServer do
       |> List.flatten()
       |> Enum.join(" ")
 
-    {:ok, pid, os_pid} = Exexec.run_link(command, exec_options())
-    state = Map.merge(%{command: command, pid: pid, os_pid: os_pid}, state)
+    {:ok, os_pid, exec_pid} = :exec.run_link(command, exec_options())
+    state = Map.merge(%{command: command, pid: exec_pid, os_pid: os_pid}, state)
     {:noreply, state}
   end
 
   def handle_info(:stop_if_not_ready, state = %{session: nil, os_pid: os_pid}) do
     Logger.warn("Chrome failed to start within #{@ready_check_ms} ms, self terminating.")
-    Exexec.stop_and_wait(os_pid)
+    :exec.stop(os_pid)
     {:stop, :normal, state}
   end
 
@@ -228,7 +228,7 @@ defmodule Chroxy.ChromeServer do
       )
       when source == :stdout or source == :stderr do
     Logger.error("[CHROME: #{inspect(pid)}] Address / Port already in use. terminating")
-    Exexec.stop_and_wait(pid)
+    :exec.stop(state.os_pid)
     {:stop, :normal, state}
   end
 
@@ -239,7 +239,7 @@ defmodule Chroxy.ChromeServer do
       ) do
     Logger.error("[CHROME: #{inspect(pid)}] #{msg}")
     Logger.error("[CHROME: #{inspect(pid)}] Critical State - Terminating.")
-    Exexec.stop_and_wait(pid)
+    :exec.stop(state.os_pid)
     {:stop, :normal, state}
   end
 
@@ -283,14 +283,14 @@ defmodule Chroxy.ChromeServer do
   def handle_info({:stderr, pid, <<"crash_handler_host_linux.cc", _rest::binary>> = msg}, state) do
     Logger.error("[CHROME: #{inspect(pid)}] #{msg}")
     Logger.error("[CHROME: #{inspect(pid)}] Critical State - Terminating.")
-    Exexec.stop_and_wait(pid)
+    :exec.stop(state.os_pid)
     {:stop, :normal, state}
   end
 
   def handle_info({:stdout, pid, <<"Failed to generate minidump.", _rest::binary>> = msg}, state) do
     Logger.error("[CHROME: #{inspect(pid)}] #{msg}")
     Logger.error("[CHROME: #{inspect(pid)}] Critical State - Terminating.")
-    Exexec.stop_and_wait(pid)
+    :exec.stop(state.os_pid)
     {:stop, :normal, state}
   end
 
@@ -321,7 +321,7 @@ defmodule Chroxy.ChromeServer do
   # Internal
 
   defp exec_options do
-    %{pty: true, stdin: true, stdout: true, stderr: true}
+    [:pty, :stdin, :stdout, :stderr]
   end
 
   defp default_opts do
