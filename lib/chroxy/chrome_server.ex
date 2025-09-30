@@ -259,21 +259,23 @@ defmodule Chroxy.ChromeServer do
   # TODO refactor messages from logs to remove "\r\n" once / create module to
   # handle log parsing
   def handle_info(
-        {:stdout, pid, <<"\r\nDevTools listening on ", _rest::binary>> = msg},
+        {:stderr, pid, <<"\r\nDevTools listening on ", _rest::binary>> = msg},
         state = %{options: opts}
       ) do
     msg = String.replace(msg, "\r\n", "")
-    Logger.info("[CHROME: #{inspect(pid)}] #{inspect(msg)}")
+    Logger.debug("Found with prefix")
+    Logger.debug("[CHROME: #{inspect(pid)}] #{inspect(msg)}")
     chrome_port = Keyword.get(opts, :chrome_port)
     session = Session.new(port: chrome_port)
     {:noreply, %{state | session: session}}
   end
 
   def handle_info(
-        {:stdout, pid, <<"DevTools listening on ", _rest::binary>> = msg},
+        {:stderr, pid, <<"DevTools listening on ", _rest::binary>> = msg},
         state = %{options: opts}
       ) do
     msg = String.replace(msg, "\r\n", "")
+    Logger.debug("Found without prefix")
     Logger.info("[CHROME: #{inspect(pid)}] #{inspect(msg)}")
     chrome_port = Keyword.get(opts, :chrome_port)
     session = Session.new(port: chrome_port)
