@@ -157,9 +157,14 @@ defmodule Chroxy.ChromeServer do
   end
 
   def handle_call(:new_page, _from, state = %{session: session, page_wait_ms: page_wait_ms}) do
-    {:ok, page} = Session.new_page(session)
-    Process.sleep(page_wait_ms)
-    {:reply, page, state}
+    case Session.new_page(session) do
+      {:ok, page} ->
+        Process.sleep(page_wait_ms)
+        {:reply, page, state}
+      other ->
+        Logger.error("Failed to create new page: #{inspect(other)}")
+        {:reply, :not_ready, state}
+    end
   end
 
   @doc false
